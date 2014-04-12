@@ -5,7 +5,24 @@ module Guard
   class XctoolTest < ::Guard::Guard
     include XctoolHelper
 
-    attr_reader :xctool, :test_paths, :test_target, :cli, :all_on_start
+    attr_reader :xctool, :test_paths, :test_target, :cli, :all_on_start, :notifier
+
+    class Notifier
+
+      TITLE = 'xctool results'
+
+      def initialize(options = {})
+      end
+
+      def notify_success
+        ::Guard::Notifier.notify('Success', title: TITLE, image: :success, priority: -2)
+      end
+
+      def notify_failure
+        ::Guard::Notifier.notify('Failed', title: TITLE, image: :failed, priority: 2)
+      end
+
+    end
 
     # Initializes a Guard plugin.
     # Don't do any work here, especially as Guard plugins get initialized even if they are not in an active group!
@@ -23,6 +40,7 @@ module Guard
       @test_target = options[:test_target]  || find_test_target
       @xctool = options[:xctool_command]    || "xctool"
       @all_on_start = options[:all_on_start] || false
+      @notifier = Notifier.new(options)
     end
 
     # Called once when Guard starts. Please override initialize method to init stuff.
@@ -74,7 +92,10 @@ module Guard
       commands << xctool
       commands << cli if cli && cli.strip != ""
       commands << command
-      unless passe = system(commands.join(" "))
+      if system(commands.join(" "))
+        notifier.notify_success
+      else
+        notifier.notify_failure
         throw :task_has_failed
       end
     end
